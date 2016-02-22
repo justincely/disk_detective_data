@@ -5,27 +5,58 @@ import os
 
 import yaml
 
-settings = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
+from db_tables import load_connection, open_settings
+from db_tables import Sed
+from db_tables import Base
 
-print settings
+SETTINGS = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
+print SETTINGS
 
-engine = create_engine(settings['CONNECTION_STRING'], echo=True)
-connection = engine.connect()
+Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=True)
 
-try:
-    connection.execute("""CREATE TABLE sed (designation char(20), ra double, declination double, glon double, glat double, w1mpro double, w1sigmpro double, w2mpro double, w2sigmpro double, w3mpro double, w3sigmpro double, w4mpro double, w4sigmpro double,  j_m_2mass double, j_msig_2mass double, h_m_2mass double, h_msig_2mass double, k_m_2mass double, k_msig_2mass double, PRIMARY KEY (designation) );""")
-    connection.execute("""CREATE INDEX name ON designation;""")
-except:
-    pass
+#-------------------------------------------------------------------------------
+
+def clean(value):
+    if isinstance(value, float):
+        return round(value, 7)
+    elif isinstance(value, str):
+        if value == 'nan':
+            return None
+        if value == 'masked':
+            return None
+    if str(value) == '--':
+        return None
+
+    return value
+
+#-------------------------------------------------------------------------------
 
 
-for item in glob.glob('data/WZ_subjects_extflag*.txt'):
-    print("parsing {}".format(item))
-    data = ascii.read(item)
-    for row in data:
-        connection.execute("""INSERT INTO sed VALUES {}""".format(row.__array__()))
+if __name__ == "__main__":
 
-for item in glob.glob('data/WZ_removethesesubjects_*.txt'):
-    print("deleting {}".format(item))
-    for name in [line.strip() for line in open(item).readlines() if line.strip().startswith('J')]:
-        connection.execute("""DELETE FROM sed WHERE designation='{}'""".format(name))
+    Base.metadata.create_all(engine)
+
+    #connection = engine.connect()
+    '''
+    session = Session()
+    for item in glob.glob('data/WZ_subjects_extflag*.txt'):
+        print("parsing {}".format(item))
+        data = ascii.read(item)
+        for row in data:
+            row_data = {key:clean(value) for key,value in zip(row.columns, row.data)}
+            session.add(Sed(**row_data))
+
+        session.commit()
+    session.close()
+    '''
+
+    session = Session()
+    for item in glob.glob('data/WZ_removethesesubjects_*.txt'):
+        print("deleting {}".format(item))
+        for name in [line.strip() for line in open(item).readlines() if line.strip().startswith('J')]:
+            session.query(Sed).filter(Sed.designation==name).delete()
+            #connection.execute("""DELETE FROM sed WHERE designation='{}'""".format(name))
+        session.commit()
+    session.close()
+
+#-------------------------------------------------------------------------------
