@@ -1,10 +1,13 @@
 import glob
 from sqlalchemy import create_engine
 from astropy.io import ascii
+import os
 
 import yaml
 
-settings = yaml.load('~/dd_configure.yaml')
+settings = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
+
+print settings
 
 engine = create_engine(settings['CONNECTION_STRING'], echo=True)
 connection = engine.connect()
