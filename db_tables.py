@@ -96,6 +96,44 @@ class Sed(Base):
 
 #-------------------------------------------------------------------------------
 
+class Hip(Base):
+    __tablename__ = 'hip'
 
+    id = Column(Integer, primary_key=True)
+
+    Plx = Column(Float)
+    pmDE = Column(Float)
+    pmRA = Column(Float)
+    e_pmRA = Column(Float)
+    e_pmDE = Column(Float)
+    Hpmag = Column(Float)
+    e_Hpmag = Column(Float)
+
+    file_id = Column(Integer, ForeignKey('sed.id'))
+
+#-------------------------------------------------------------------------------
+
+class Urat(Base):
+    __tablename__ = 'urat'
+
+    id = Column(Integer, primary_key=True)
+
+    pmRA = Column(Float)
+    pmDE = Column(Float)
+    e_pm = Column(Float)
+
+    Bmag = Column(Float)
+    Vmag = Column(Float)
+    rmag = Column(Float)
+    imag = Column(Float)
+    gmag = Column(Float)
+
+    e_Bmag = Column(Float)
+    e_Vmag = Column(Float)
+    e_rmag = Column(Float)
+    e_imag = Column(Float)
+    e_gmag = Column(Float)
+
+    file_id = Column(Integer, ForeignKey('sed.id'))
 
 #-------------------------------------------------------------------------------
