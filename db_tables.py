@@ -137,3 +137,47 @@ class Urat(Base):
     file_id = Column(Integer, ForeignKey('sed.id'))
 
 #-------------------------------------------------------------------------------
+
+class Ais(Base):
+    __tablename__ = 'ais'
+
+    id = Column(Integer, primary_key=True)
+
+    FUV = Column(Float)
+    NUV = Column(Float)
+    e_FUV = Column(Float)
+    e_NUV = Column(Float)
+
+    file_id = Column(Integer, ForeignKey('sed.id'))
+
+#-------------------------------------------------------------------------------
+
+class Hip_main(Base):
+    __tablename__ = 'hip_main'
+
+    id = Column(Integer, primary_key=True)
+
+    BTmag = Column(Float)
+    VTmag= Column(Float)
+    e_BTmag = Column(Float)
+    e_VTmag = Column(Float)
+
+    file_id = Column(Integer, ForeignKey('sed.id'))
+
+#-------------------------------------------------------------------------------
+
+class Iphas(Base):
+    __tablename__ = 'iphas'
+
+    id = Column(Integer, primary_key=True)
+
+    r = Column(Float)
+    rErr = Column(Float)
+    i = Column(Float)
+    iErr = Column(Float)
+    ha = Column(Float)
+    haErr = Column(Float)
+
+    file_id = Column(Integer, ForeignKey('sed.id'))
+
+#-------------------------------------------------------------------------------
