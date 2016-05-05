@@ -12,21 +12,21 @@ import yaml
 import json
 
 from db_tables import load_connection, open_settings
-from db_tables import Sed, Urat, Hip
+from db_tables import Sed, Urat, Hip, Ais, Hip_main, Iphas
 from db_tables import Base
 from db_tables import Subjects, Classification
 
 SETTINGS = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
 print SETTINGS
 
-Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=True)
+Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
 
 #-------------------------------------------------------------------------------
 
 def clean(value):
-    if np.isnan(value):
-        return None
     if isinstance(value, float):
+        if np.isnan(value):
+            return None
         return round(value, 7)
     elif isinstance(value, str):
         if value == 'nan':
@@ -52,25 +52,37 @@ def mp_insert(args):
 
 #-------------------------------------------------------------------------------
 
-def resolve(id, ra, dec, catalog, table, columns):
+def resolve(id, ra, dec, catalog, table):
+    Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
     session = Session()
+    already_found = [result.file_id for result in session.query(table).filter(table.file_id == id)]
 
-    res = Vizier(catalog=catalog, columns=columns)
-
-    lines = res.query_region(coord.SkyCoord(ra=ra,
-                                            dec=dec,
-                                            unit=(u.deg, u.deg), frame='icrs'),
-                                            radius="1s")
-
-    if len(lines) == 1:
-        data = {key:clean(lines[0][key].item()) for key in lines[0].keys() if not key in ['_RAJ2000', '_DEJ2000']}
-        print data
-        session.add(table(**data))
+    if len(already_found):
+        print("Resolving {} {} {}: Already Resolved".format(id, ra, dec))
     else:
-        session.add(table(**{'file_id':id}))
+        lines = catalog.query_region(coord.SkyCoord(ra=ra,
+                                                    dec=dec,
+                                                    unit=(u.deg, u.deg), frame='icrs'),
+                                                    radius="1s")
+        #-- index into first (only) table
+        if len(lines) > 1:
+            lines = lines[0]
 
-    session.commit()
+        if len(lines) >= 1:
+            print("Resolving {} {} {}, {} Matches Found".format(id, ra, dec, len(lines)))
+
+            #strip off everything but the first:
+            data = {key:clean(lines[0][key][0].item()) for key in lines[0].keys() if not key in ['_RAJ2000', '_DEJ2000']}
+            data['file_id'] = id
+            print data
+            session.add(table(**data))
+            session.commit()
+
+        else:
+            print("Resolving {} {} {}: No Data found".format(id, ra, dec))
+
     session.close()
+    engine.dispose()
 
 #-------------------------------------------------------------------------------
 
@@ -113,7 +125,7 @@ if __name__ == "__main__":
     sys.exit()
 
 
-    '''
+    """
     session = Session()
     for item in glob.glob('data/WZ_subjects_extflag*.txt'):
         print("parsing {}".format(item))
@@ -124,8 +136,7 @@ if __name__ == "__main__":
 
         session.commit()
     session.close()
-    '''
-    """
+
     session = Session()
     for item in glob.glob('data/WZ_removethesesubjects_*.txt'):
         print("deleting {}".format(item))
@@ -134,17 +145,17 @@ if __name__ == "__main__":
         session.commit()
     session.close()
     """
-
     session = Session()
     results = session.query(Sed.id, Sed.ra, Sed.dec)
     session.close()
 
-    pool = mp.Pool(processes=4)
-
+    pool = mp.Pool(processes=12)
+    '''
     #-- Hipparcos catalog for proper motion and parallax
     cat = "I/311/hip2"
     columns = ['Plx', 'pmRA', 'pmDE', 'e_pmRA', 'e_pmDE', 'Hpmag', 'e_Hpmag']
-    args = ((row[0], row[1], row[2], cat, Hip, columns) for row in results)
+    catalog = Vizier(catalog=cat, columns=columns)
+    args = ((row[0], row[1], row[2], catalog, Hip) for row in results)
     pool.map(mp_insert, args)
 
     #-- Urat catalog for magnitudes
@@ -162,7 +173,31 @@ if __name__ == "__main__":
                'e_rmag',
                'imag',
                'e_imag']
-    args = ((row[0], row[1], row[2], cat, Urat, columns) for row in results)
+    catalog = Vizier(catalog=cat, columns=columns)
+    args = ((row[0], row[1], row[2], catalog, Urat) for row in results)
     pool.map(mp_insert, args)
+    '''
+    '''
+    #-- Hipparcos catalog for proper motion and parallax
+    cat = "II/312/ais"
+    columns = ['FUV', 'NUV', 'e_FUV', 'e_NUV']
+    catalog = Vizier(catalog=cat, columns=columns)
+    args = ((row[0], row[1], row[2], catalog, Ais) for row in results)
+    pool.map(mp_insert, args)
+    '''
+    #-- Hipparcos catalog for proper motion and parallax
+    cat = "I/239/hip_main"
+    columns = ['BTmag', 'VTmag', 'e_BTmag', 'e_VTmag']
+    catalog = Vizier(catalog=cat, columns=columns)
+    args = ((row[0], row[1], row[2], catalog, Hip_main) for row in results)
+    pool.map(mp_insert, args)
+
+    #-- Hipparcos catalog for proper motion and parallax
+    cat = "II/321/iphas2"
+    columns = ['r', 'rErr', 'i', 'iErr', 'ha', 'haErr']
+    catalog = Vizier(catalog=cat, columns=columns)
+    args = ((row[0], row[1], row[2], catalog, Iphas) for row in results)
+    pool.map(mp_insert, args)
+
 
 #-------------------------------------------------------------------------------
