@@ -9,10 +9,12 @@ import numpy as np
 import multiprocessing as mp
 
 import yaml
+import json
 
 from db_tables import load_connection, open_settings
 from db_tables import Sed, Urat, Hip
 from db_tables import Base
+from db_tables import Subjects, Classification
 
 SETTINGS = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
 print SETTINGS
@@ -72,9 +74,44 @@ def resolve(id, ra, dec, catalog, table, columns):
 
 #-------------------------------------------------------------------------------
 
+def insert_wise_data():
+    session = Session()
+
+    with open('data/wise_subjects.json') as infile:
+        for line in infile:
+            data = json.loads(line)
+            to_insert = {'ddid': data['_id']['$oid'],
+                         'wise_id': data['metadata']['wise_id'],
+                         'state': data['state']}
+
+            session.add(Subjects(**to_insert))
+
+        session.commit()
+
+    with open('data/wise_classifications.json') as infile:
+        for line in infile:
+            data = json.loads(line)
+            ddid = data['_id']['$oid']
+
+            for line in data['annotations']:
+                if 'classified_as' in line:
+                    to_insert = {'ddid': ddid,
+                                 'classified_as': line['classified_as']}
+                    session.add(Classifications(**to_insert))
+        session.commit()
+
+    session.close()
+
+#-------------------------------------------------------------------------------
+
 if __name__ == "__main__":
 
     Base.metadata.create_all(engine)
+
+    insert_wise_data()
+
+    sys.exit()
+
 
     '''
     session = Session()

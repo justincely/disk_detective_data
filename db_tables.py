@@ -1,3 +1,5 @@
+\
+
 import os
 
 from sqlalchemy.ext.declarative import declarative_base
@@ -135,5 +137,30 @@ class Urat(Base):
     e_gmag = Column(Float)
 
     file_id = Column(Integer, ForeignKey('sed.id'))
+
+#-------------------------------------------------------------------------------
+
+class Subjects(Base):
+    __tablename__ = 'urat'
+
+    id = Column(Integer, primary_key=True)
+
+    ddid = Column(String)
+    wise_id = Column(String)
+    state = Column(String)
+
+    #file_id = Column(Integer, ForeignKey('sed.id'))
+
+#-------------------------------------------------------------------------------
+
+class Classification(Base):
+    __tablename__ = 'urat'
+
+    id = Column(Integer, primary_key=True)
+
+    ddid = Column(String)
+    classified_as = Column(String)
+
+    #file_id = Column(Integer, ForeignKey('sed.id'))
 
 #-------------------------------------------------------------------------------
