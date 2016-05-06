@@ -86,39 +86,53 @@ def resolve(id, ra, dec, catalog, table):
 
 #-------------------------------------------------------------------------------
 
+def parse_subjects(txtline):
+    Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
+    session = Session()
+
+    data = json.loads(txtline)
+
+    to_insert = {'ddid': data['_id']['$oid'],
+                'wise_id': data['metadata'].get('wise_id', None),
+                'state': data['state']}
+
+    session.add(Subjects(**to_insert))
+
+    session.commit()
+    session.close()
+    engine.dispose()
+
+#-------------------------------------------------------------------------------
+
+def parse_classifications(txtline):
+    Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
+    session = Session()
+
+    data = json.loads(txtline)
+    ddid = data['subject_ids'][0]['$oid']
+
+    for line in data['annotations']:
+        if 'classified_as' in line:
+            to_insert = {'ddid': ddid,
+                         'classified_as': line['classified_as']}
+            session.add(Classifications(**to_insert))
+
+    session.commit()
+    session.close()
+    engine.dispose()
+
+#-------------------------------------------------------------------------------
+
 def insert_wise_data():
     session = Session()
-    '''
+
+    pool = mp.Pool(processes=8)
+
     with open('data/wise_subjects.json') as infile:
-        for i,line in enumerate(infile):
-            data = json.loads(line)
+        pool.map(parse_subjects, infile.readlines())
 
-            to_insert = {'ddid': data['_id']['$oid'],
-                        'wise_id': data['metadata'].get('wise_id', None),
-                        'state': data['state']}
-
-            session.add(Subjects(**to_insert))
-
-            if not i % 1000:
-                print 'subjects ', i
-                session.commit()
-    '''
     with open('data/wise_classifications.json') as infile:
-        for i,line in enumerate(infile):
-            data = json.loads(line)
-            ddid = data['subject_ids'][0]['$oid']
-
-            for line in data['annotations']:
-                if 'classified_as' in line:
-                    to_insert = {'ddid': ddid,
-                                 'classified_as': line['classified_as']}
-                    session.add(Classifications(**to_insert))
-
-            if not i % 1000:
-                print 'classifications ', i
-                session.commit()
-
-    session.close()
+        pool.map(parse_classifications, infile.readlines())
 
 #-------------------------------------------------------------------------------
 
@@ -126,10 +140,7 @@ if __name__ == "__main__":
 
     Base.metadata.create_all(engine)
 
-    insert_wise_data()
-
-    sys.exit()
-
+    #insert_wise_data()
 
     """
     session = Session()
@@ -142,7 +153,7 @@ if __name__ == "__main__":
 
         session.commit()
     session.close()
-
+    """
     session = Session()
     for item in glob.glob('data/WZ_removethesesubjects_*.txt'):
         print("deleting {}".format(item))
@@ -150,13 +161,13 @@ if __name__ == "__main__":
             session.query(Sed).filter(Sed.designation==name).delete()
         session.commit()
     session.close()
-    """
+
     session = Session()
     results = session.query(Sed.id, Sed.ra, Sed.dec)
     session.close()
 
-    pool = mp.Pool(processes=12)
-    '''
+    pool = mp.Pool(processes=8)
+
     #-- Hipparcos catalog for proper motion and parallax
     cat = "I/311/hip2"
     columns = ['Plx', 'pmRA', 'pmDE', 'e_pmRA', 'e_pmDE', 'Hpmag', 'e_Hpmag']
@@ -182,15 +193,15 @@ if __name__ == "__main__":
     catalog = Vizier(catalog=cat, columns=columns)
     args = ((row[0], row[1], row[2], catalog, Urat) for row in results)
     pool.map(mp_insert, args)
-    '''
-    '''
+
+
     #-- Hipparcos catalog for proper motion and parallax
     cat = "II/312/ais"
     columns = ['FUV', 'NUV', 'e_FUV', 'e_NUV']
     catalog = Vizier(catalog=cat, columns=columns)
     args = ((row[0], row[1], row[2], catalog, Ais) for row in results)
     pool.map(mp_insert, args)
-    '''
+
     #-- Hipparcos catalog for proper motion and parallax
     cat = "I/239/hip_main"
     columns = ['BTmag', 'VTmag', 'e_BTmag', 'e_VTmag']
