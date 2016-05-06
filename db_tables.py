@@ -141,27 +141,30 @@ class Urat(Base):
 #-------------------------------------------------------------------------------
 
 class Subjects(Base):
-    __tablename__ = 'urat'
+    __tablename__ = 'subjects'
 
     id = Column(Integer, primary_key=True)
 
-    ddid = Column(String)
-    wise_id = Column(String)
-    state = Column(String)
+    ddid = Column(String(24))
+    wise_id = Column(String(20))
+    state = Column(String(20))
 
-    #file_id = Column(Integer, ForeignKey('sed.id'))
+    #designation = Column(Integer, ForeignKey('sed.designation'))
+    __table_args__ = (Index('idx_designation', 'wise_id'), )
+    __table_args__ = (Index('idx_ddid', 'ddid'), )
 
 #-------------------------------------------------------------------------------
 
-class Classification(Base):
-    __tablename__ = 'urat'
+class Classifications(Base):
+    __tablename__ = 'classifications'
 
     id = Column(Integer, primary_key=True)
 
-    ddid = Column(String)
-    classified_as = Column(String)
+    ddid = Column(String(24))
+    classified_as = Column(String(20))
 
-    #file_id = Column(Integer, ForeignKey('sed.id'))
+    #designation = Column(Integer, ForeignKey('sed.designation'))
+    __table_args__ = (Index('idx_designation', 'ddid'), )
 
 #-------------------------------------------------------------------------------
 

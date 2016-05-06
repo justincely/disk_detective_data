@@ -14,7 +14,7 @@ import json
 from db_tables import load_connection, open_settings
 from db_tables import Sed, Urat, Hip, Ais, Hip_main, Iphas
 from db_tables import Base
-from db_tables import Subjects, Classification
+from db_tables import Subjects, Classifications
 
 SETTINGS = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
 print SETTINGS
@@ -88,29 +88,35 @@ def resolve(id, ra, dec, catalog, table):
 
 def insert_wise_data():
     session = Session()
-
+    '''
     with open('data/wise_subjects.json') as infile:
-        for line in infile:
+        for i,line in enumerate(infile):
             data = json.loads(line)
+
             to_insert = {'ddid': data['_id']['$oid'],
-                         'wise_id': data['metadata']['wise_id'],
-                         'state': data['state']}
+                        'wise_id': data['metadata'].get('wise_id', None),
+                        'state': data['state']}
 
             session.add(Subjects(**to_insert))
 
-        session.commit()
-
+            if not i % 1000:
+                print 'subjects ', i
+                session.commit()
+    '''
     with open('data/wise_classifications.json') as infile:
-        for line in infile:
+        for i,line in enumerate(infile):
             data = json.loads(line)
-            ddid = data['_id']['$oid']
+            ddid = data['subject_ids'][0]['$oid']
 
             for line in data['annotations']:
                 if 'classified_as' in line:
                     to_insert = {'ddid': ddid,
                                  'classified_as': line['classified_as']}
                     session.add(Classifications(**to_insert))
-        session.commit()
+
+            if not i % 1000:
+                print 'classifications ', i
+                session.commit()
 
     session.close()
 
