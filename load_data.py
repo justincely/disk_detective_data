@@ -19,7 +19,7 @@ from db_tables import Subjects, Classifications
 SETTINGS = yaml.load(open(os.path.join(os.environ['HOME'], 'dd_configure.yaml')))
 print SETTINGS
 
-Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
+Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=True)
 
 #-------------------------------------------------------------------------------
 
@@ -125,9 +125,46 @@ def parse_classifications(txtline):
 
 #-------------------------------------------------------------------------------
 
-def insert_wise_data():
+def parse_initial(row):
+    Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
     session = Session()
 
+    row_data = {key:clean(value) for key,value in zip(row.columns, row.data)}
+    session.add(Sed(**row_data))
+
+    session.commit()
+    session.close()
+    engine.dispose()
+
+#-------------------------------------------------------------------------------
+
+def rm_name(name):
+    Session, engine = load_connection(SETTINGS['CONNECTION_STRING'], echo=False)
+    session = Session()
+
+    session.query(Sed).filter(Sed.designation==name).delete()
+    session.commit()
+    session.close()
+    engine.dispose()
+
+#-------------------------------------------------------------------------------
+
+def insert_initial_data():
+    pool = mp.Pool(processes=8)
+
+    for item in glob.glob('data/WZ_subjects_extflag*.txt'):
+        print("parsing {}".format(item))
+        data = [row for row in ascii.read(item)]
+        pool.map(parse_initial, data)
+
+    for item in glob.glob('data/WZ_removethesesubjects_*.txt'):
+        print("deleting {}".format(item))
+        all_names = [line.strip() for line in open(item).readlines() if line.strip().startswith('J')]
+        pool.map(rm_name, all_names)
+
+#-------------------------------------------------------------------------------
+
+def insert_wise_data():
     pool = mp.Pool(processes=8)
 
     with open('data/wise_subjects.json') as infile:
@@ -142,29 +179,10 @@ if __name__ == "__main__":
 
     Base.metadata.create_all(engine)
 
+    insert_initial_data()
     insert_wise_data()
 
     sys.exit()
-
-    """
-    session = Session()
-    for item in glob.glob('data/WZ_subjects_extflag*.txt'):
-        print("parsing {}".format(item))
-        data = ascii.read(item)
-        for row in data:
-            row_data = {key:clean(value) for key,value in zip(row.columns, row.data)}
-            session.add(Sed(**row_data))
-
-        session.commit()
-    session.close()
-    """
-    session = Session()
-    for item in glob.glob('data/WZ_removethesesubjects_*.txt'):
-        print("deleting {}".format(item))
-        for name in [line.strip() for line in open(item).readlines() if line.strip().startswith('J')]:
-            session.query(Sed).filter(Sed.designation==name).delete()
-        session.commit()
-    session.close()
 
     session = Session()
     results = session.query(Sed.id, Sed.ra, Sed.dec)
@@ -198,7 +216,6 @@ if __name__ == "__main__":
     args = ((row[0], row[1], row[2], catalog, Urat) for row in results)
     pool.map(mp_insert, args)
 
-
     #-- Hipparcos catalog for proper motion and parallax
     cat = "II/312/ais"
     columns = ['FUV', 'NUV', 'e_FUV', 'e_NUV']
@@ -219,6 +236,5 @@ if __name__ == "__main__":
     catalog = Vizier(catalog=cat, columns=columns)
     args = ((row[0], row[1], row[2], catalog, Iphas) for row in results)
     pool.map(mp_insert, args)
-
 
 #-------------------------------------------------------------------------------
