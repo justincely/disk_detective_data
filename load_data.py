@@ -94,7 +94,9 @@ def parse_subjects(txtline):
 
     to_insert = {'ddid': data['_id']['$oid'],
                 'wise_id': data['metadata'].get('wise_id', None),
-                'state': data['state']}
+                'state': data['state'],
+                'im_2massj': data['location'].get('2massj', None),
+                'im_2massk': data['location'].get('2massk', None)}
 
     session.add(Subjects(**to_insert))
 
@@ -140,7 +142,9 @@ if __name__ == "__main__":
 
     Base.metadata.create_all(engine)
 
-    #insert_wise_data()
+    insert_wise_data()
+
+    sys.exit()
 
     """
     session = Session()

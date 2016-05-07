@@ -148,6 +148,8 @@ class Subjects(Base):
     ddid = Column(String(24))
     wise_id = Column(String(20))
     state = Column(String(20))
+    im_2massj = Column(String(100))
+    im_2massk = Column(String(100))
 
     #designation = Column(Integer, ForeignKey('sed.designation'))
     __table_args__ = (Index('idx_designation', 'wise_id'), )
